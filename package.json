@@ -1,0 +1,19 @@
+{
+  "name": "notesserver",
+  "version": "1.0.0",
+  "description": "Sersver for the Notes Application on React-Native",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DaniyalShaikh-0/NotesServer.git"
+  },
+  "author": "Daniyal Shaikh",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/DaniyalShaikh-0/NotesServer/issues"
+  },
+  "homepage": "https://github.com/DaniyalShaikh-0/NotesServer#readme"
+}
