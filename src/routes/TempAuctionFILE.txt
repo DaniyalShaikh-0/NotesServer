@@ -1,0 +1,131 @@
+const pool = require("../database/db_connection");
+const { Auction_State, Auction_Type } = require("../status/AuctionStatus");
+const ShowAuctions = async (req, res) => {
+  try {
+    const { buyerid } = req.headers;
+    const id = parseInt(buyerid);
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(500).send({ data: "No conversations yet", response: false });
+    } else {
+      console.log(id, " is id");
+      let query;
+      let TempResult = [];
+      //   const { email, password } = req.headers;
+      if (req?.params?.type !== "all") {
+        let type = req?.params?.type.toUpperCase();
+        query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry and auction_type='${Auction_Type[type]}';`;
+      } else {
+        query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry;`;
+      }
+
+      // ? CAN DO "TAKE ALL FROM BG_AUCTION , TAKE ALL FROM AUCTION_IMAGES. FILTER AUCTION IMAGES WITH AUCTION_ID OF RETRIEVED, THEN JOIN THEM"
+      console.log(query, " is query");
+
+      // select c.conversation_id,conversation_name from _users_in_conversation c left join _conversation on _conversation.conversation_id=c.conversation_id where userid=${id}
+      let FinalResult = [];
+      await pool
+        .query(query)
+        .then(
+          (result) => {
+            console.log(result.rows.length, " is len");
+            result.rows.length >= 1
+              ? TempResult.concat(result.rows)
+              : res.send({ rowsRetrieved: false });
+            return new Promise((resolve)=>resolve(TempResult))
+          },
+          (err) => {
+            console.log("ERROR BROO");
+            res.send({ rowsRetrieved: false });
+          }
+        )
+        .then((val) => {
+          console.log(TempResult.length);
+          // for (let i = 0; i < TempResult.length; i++) {
+          //   const auction_id = TempResult[i].auction_id;
+          //   query = `select img_id,image_link from auction_images where auction_id='${auction_id}'`;
+          //   pool.query(query, (err, q_result) => {
+          //     FinalResult.push({ ...TempResult[i], images: q_result.rows });
+          //   });
+          // }
+          // return Promise.resolve(FinalResult);
+        })
+        .then((val) => console.log(val))
+        .then(() => res.send("OK"));
+
+      // (err, result) => {
+      //   if (result?.rows?.length >= 1) {
+      //     FinalResult = result.rows;
+      // for (let i = 0; i < result.rows.length; i++) {
+      //   const auction_id = result.rows[i].auction_id;
+      //   query = `select img_id,image_link from auction_images where auction_id='${auction_id}'`;
+      //   pool.query(query)
+      //     }
+      //   } else {
+      //     return res.send({ rowsRetrieved: false });
+      //   }
+      // }
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error.message);
+  }
+};
+
+// ! POST REQ
+const PutAuctions = (req, res) => {
+  try {
+    const {
+      sellerid,
+      auction_type,
+      item_name,
+      item_desc,
+      item_specs,
+      item_category,
+      base_price,
+      charity_part,
+      bid1,
+      bid2,
+      bid3,
+      buynow_price,
+      images, // ! IMAGE will contain URLS of images hosted on AWS s3
+    } = req.body;
+    const id = parseInt(buyerid);
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(330).send({ data: "No conversations yet", response: false });
+    } else {
+      let query;
+      let type = auction_type.toUpperCase();
+      query = `INSERT INTO bg_auction VALUES (default,${sellerid}, '${Auction_Type[type]}',default,default,
+      '${item_name}','${item_desc}','${item_specs}','${item_category}',${base_price},${charity_part},default,${bid1},${bid2},${bid3},
+      ${buynow_price},default) RETURNING auction_id;`;
+      // select c.conversation_id,conversation_name from _users_in_conversation c left join _conversation on _conversation.conversation_id=c.conversation_id where userid=${id}
+      pool.query(query, (err, result) => {
+        const auction_id = result.rows[0];
+        console.log(auction_id);
+      });
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error.message);
+  }
+};
+
+module.exports = ShowAuctions;
+// for (let count = 0; count < data_response.length; count++) {
+//     console.log("In for\n");
+//     let uid = data_response[count]?.conversation_id;
+//     if (uid) {
+//       query = `select userid from _users_in_conversation where conversation_id=${uid}`;
+//       await pool.query(query, (err, result) => {
+//         console.log("====================================");
+//         console.log("FOR", count, "\n", result?.rows, "\n", "FOR", count);
+//         console.log("====================================");
+//         result.rows.length >= 1
+//           ?
+//           : res.send({ data: "No conversations yet", response: false });
+//       });
+//     }
+
+//   }

@@ -1,0 +1,371 @@
+const pool = require("../database/db_connection");
+const { Auction_State, Auction_Type } = require("../status/AuctionStatus");
+const ShowAuctions = async (req, res) => {
+  try {
+    const { buyerid } = req.headers;
+    const id = parseInt(buyerid);
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(500).send({ data: "No conversations yet", response: false });
+    } else {
+      console.log(id, " is id");
+      let query;
+      let TempResult = [];
+      //   const { email, password } = req.headers;
+      if (req?.params?.type !== "all") {
+        let type = req?.params?.type.toUpperCase();
+        query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry and auction_type='${Auction_Type[type]}';`;
+      } else {
+        query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry;`;
+      }
+
+      // ? CAN DO "TAKE ALL FROM BG_AUCTION , TAKE ALL FROM AUCTION_IMAGES. FILTER AUCTION IMAGES WITH AUCTION_ID OF RETRIEVED, THEN JOIN THEM"
+      console.log(query, " is query");
+
+      // select c.conversation_id,conversation_name from _users_in_conversation c left join _conversation on _conversation.conversation_id=c.conversation_id where userid=${id}
+      let FinalResult = [];
+      let images = [];
+      await pool
+        .query(query)
+        .then(
+          (result) => {
+            console.log(result.rows.length, " is len");
+            result.rows.length >= 1
+              ? result.rows.map((val) => TempResult.push(val))
+              : res.send({ rowsRetrieved: false });
+          },
+          (err) => {
+            console.log("ERROR BROO");
+            res.send({ rowsRetrieved: false });
+          }
+        )
+        .then(() => {
+          // TempResult.map((val) => {
+          //   const auction_id = val.auction_id;
+          //   query = `select img_id,image_link from auction_images where auction_id='${auction_id}'`;
+          //   pool.query(query, (err, q_result) => (images = q_result.rows));
+          //   // console.log("====================================");
+          //   // console.log(images);
+          //   // console.log("====================================");
+          //   return { ...val, images };
+          // });
+
+          TempResult.reduce((prev, curr) => {
+            return prev.then(() => {
+              const auction_id = curr.auction_id;
+              query = `select img_id,image_link from auction_images where auction_id='${auction_id}'`;
+              pool.query(query, (err, q_result) => (images = q_result.rows));
+            });
+          });
+        })
+        .then((val) => console.log(TempResult))
+        .then(() => res.send("OK"));
+
+      // (err, result) => {
+      //   if (result?.rows?.length >= 1) {
+      //     FinalResult = result.rows;
+      // for (let i = 0; i < result.rows.length; i++) {
+      //   const auction_id = result.rows[i].auction_id;
+      //   query = `select img_id,image_link from auction_images where auction_id='${auction_id}'`;
+      //   pool.query(query)
+      //     }
+      //   } else {
+      //     return res.send({ rowsRetrieved: false });
+      //   }
+      // }
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error.message);
+  }
+};
+
+// ! POST REQ
+const PutAuctions = (req, res) => {
+  try {
+    const {
+      sellerid,
+      auction_type,
+      item_name,
+      item_desc,
+      item_specs,
+      item_category,
+      base_price,
+      charity_part,
+      bid1,
+      bid2,
+      bid3,
+      buynow_price,
+      images, // ! IMAGE will contain URLS of images hosted on AWS s3
+    } = req.body;
+    const id = parseInt(buyerid);
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(330).send({ data: "No conversations yet", response: false });
+    } else {
+      let query;
+      let type = auction_type.toUpperCase();
+      query = `INSERT INTO bg_auction VALUES (default,${sellerid}, '${Auction_Type[type]}',default,default,
+      '${item_name}','${item_desc}','${item_specs}','${item_category}',${base_price},${charity_part},default,${bid1},${bid2},${bid3},
+      ${buynow_price},default) RETURNING auction_id;`;
+      // select c.conversation_id,conversation_name from _users_in_conversation c left join _conversation on _conversation.conversation_id=c.conversation_id where userid=${id}
+      pool.query(query, (err, result) => {
+        const auction_id = result.rows[0];
+        console.log(auction_id);
+      });
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error.message);
+  }
+};
+
+module.exports = ShowAuctions;
+// for (let count = 0; count < data_response.length; count++) {
+//     console.log("In for\n");
+//     let uid = data_response[count]?.conversation_id;
+//     if (uid) {
+//       query = `select userid from _users_in_conversation where conversation_id=${uid}`;
+//       await pool.query(query, (err, result) => {
+//         console.log("====================================");
+//         console.log("FOR", count, "\n", result?.rows, "\n", "FOR", count);
+//         console.log("====================================");
+//         result.rows.length >= 1
+//           ?
+//           : res.send({ data: "No conversations yet", response: false });
+//       });
+//     }
+
+//   }
+const pool = require("../database/db_connection");
+const { Auction_State, Auction_Type } = require("../status/AuctionStatus");
+const ShowAuctions = async (req, res) => {
+  try {
+    const { buyerid } = req.headers;
+    const id = parseInt(buyerid);
+    const zeroTime = "00:00:00.000";
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(500).send({ data: "No conversations yet", response: false });
+    } else {
+      console.log(id, " is id");
+      let query;
+      let TempResult = [];
+      let Auctions_ids = [];
+      //   const { email, password } = req.headers;
+      let type = req?.params?.type.toUpperCase();
+      if (type !== "ALL" && type !== "PRIVATE") {
+        //TODO replace auction_status='a' with auction_status='${AuctionState.Active}'
+        query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry and auction_type='${Auction_Type[type]}';`;
+      } else {
+        if (type == "PRIVATE") {
+          query = ``;
+        } else {
+          query = `select * from bg_auction where auction_status='a' and sellerid!=${id} and current_date < auction_expiry and auction_type!='${Auction_Type.PRIVATE}';`;
+        }
+      }
+
+      // ? CAN DO "TAKE ALL FROM BG_AUCTION , TAKE ALL FROM AUCTION_IMAGES. FILTER AUCTION IMAGES WITH AUCTION_ID OF RETRIEVED, THEN JOIN THEM"
+      // select c.conversation_id,conversation_name from _users_in_conversation c left join _conversation on _conversation.conversation_id=c.conversation_id where userid=${id}
+      await pool
+        .query(query)
+        .then(
+          (result) => {
+            console.log(result.rows.length, " is len");
+            result?.rows?.map((val) => {
+              val.auction_date = new Date(
+                val.auction_date.getTime() -
+                  val.auction_date.getTimezoneOffset() * 60 * 1000
+              )
+                .toISOString()
+                .replace(zeroTime, val.auction_time.substr(0, zeroTime.length));
+              return TempResult.push(val);
+            });
+            return TempResult;
+          },
+          (err) => {
+            console.log("ERROR BROO", err);
+            res.send({ response: false });
+          }
+        )
+        .then(() => {
+          private_query = `select auction_id from users_in_private where buyerid=${buyerid}`;
+          return pool.query(private_query);
+        })
+        .then((result) =>
+          result?.rows?.map((val) => "'" + val.auction_id + "'")
+        )
+        .then((values) => {
+          if (values?.length <= 0 || !values) {
+            return [];
+          } else {
+            console.log("ddkk ", " is len");
+            //* values are auction ids of private auctions
+            if (type !== "ALL") {
+              priavte_auctions = `select * from bg_auction where auction_status='a' and auction_type='${Auction_Type[type]}' and auction_id in (${values})`;
+            } else {
+              priavte_auctions = `select * from bg_auction where auction_status='a' and auction_id in (${values})`;
+            }
+            return pool.query(priavte_auctions);
+          }
+        })
+        .then((result) => {
+          result.rows.map((val) => {
+            val.auction_date = new Date(
+              val.auction_date.getTime() -
+                val.auction_date.getTimezoneOffset() * 60 * 1000
+            )
+              .toISOString()
+              .replace(zeroTime, val.auction_time.substr(0, zeroTime.length));
+            return TempResult.push(val);
+          });
+
+          return TempResult;
+        })
+        .then((val) => {
+          console.log("Also cam here");
+          Auctions_ids = val.map((it) => "'" + it.auction_id + "'");
+          return Auctions_ids;
+        })
+        .then((val) => {
+          console.log(val);
+          bid_info = `select * from participants_info(ARRAY[${val}]) as
+          (bid_id bigint,auction_id text,highest_price int
+            ,bidder_id bigint,bid_time time with time zone
+            ,bid_date date,confirmed char,number_of_participants bigint);`;
+          return pool.query(bid_info);
+        })
+        .then((result) =>
+          result?.rows?.map((val) => {
+            if (!val.bid_id) return val;
+            val.bid_date = new Date(
+              val.bid_date.getTime() -
+                val.bid_date.getTimezoneOffset() * 60 * 1000
+            )
+              .toISOString()
+              .replace(zeroTime, val.bid_time.substr(0, zeroTime.length));
+
+            return val;
+          })
+        )
+        .then((processed) => {
+          TempResult = TempResult.map((value) => {
+            let item = processed.filter((val) => {
+              return val.auction_id === value.auction_id;
+            })[0];
+            console.log(" ID IS ITEM FJF : \n", item, "\nID IS ITEM FJF ");
+            return { ...value, bid_info: item };
+          });
+
+          // console.log("====================================");
+          // console.log("RIGHT NOW RESULT IS :");
+          // console.log(TempResult);
+          // console.log("RIGHT NOW RESULT IS :");
+          // console.log("====================================");
+
+          return Auctions_ids;
+        })
+        .then((value) =>
+          pool.query(
+            `select * from auction_images where auction_id in (${value})`
+          )
+        )
+        .then((result) => {
+          // ! HERE PROCESSING will happen
+          return TempResult.map((value) => {
+            let items = result.rows.filter(
+              (val) => val.auction_id === value.auction_id
+            );
+            return { ...value, images: items };
+          });
+        })
+        // .then((value)=>value.filter((item)=>item.auction_date.getTime()+1000*60*60*60 <= )
+        .then((val) => res.send({ dataitems: val, response: true })) // DONE {Here the query is completed}
+        .catch((err) => res.send({ response: false, err: err })); // ! If any error occurs
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error);
+  }
+};
+
+// ! POST REQ
+const PutAuctions = (req, res) => {
+  try {
+    let {
+      sellerid,
+      auction_type,
+      item_name,
+      item_desc,
+      item_specs,
+      item_category,
+      base_price,
+      charity_part,
+      bid1,
+      bid2,
+      bid3,
+      buynow_price,
+      remaining_tokens,
+      images, // ! IMAGE will contain URLS of images hosted on AWS s3
+    } = req.body;
+    const id = parseInt(sellerid);
+    {
+      // bid1 = parseInt(bid1);
+      // bid2 = parseInt(bid2);
+      // bid3 = parseInt(bid3);
+      // buynow_price = parseInt(buynow_price);
+      // base_price = parseInt(base_price);
+    } // ? IF NEEDED
+    if (isNaN(id)) {
+      console.log("ERRORRR INVALIDD  id:", id);
+      res.status(330).send({ data: "No conversations yet", response: false });
+    } else {
+      let query;
+      let type = auction_type.toUpperCase();
+      query = `INSERT INTO bg_auction VALUES (default,${id}, '${Auction_Type[type]}',default,default,
+      '${item_name}','${item_desc}','${item_specs}','${item_category}',${base_price},${charity_part},default,${bid1},${bid2},${bid3},
+      ${buynow_price},default) RETURNING auction_id;`;
+      let Allsend = true;
+      pool
+        .query(query)
+        .then((result) => result.rows[0])
+        .then((value) => {
+          return images.map((val, ind) => {
+            console.log(" ind is  ", ind);
+            img_query = `INSERT INTO auction_images values (default,'${value.auction_id}','${val}');`;
+            return pool.query(img_query, (err, res) => {
+              err ? (Allsend = false) : "";
+            });
+          });
+        })
+        .then(() => {
+          upd_query = `update bg_user set tokens=${remaining_tokens} where userid=${sellerid}`;
+          return pool.query(upd_query);
+        })
+        .then(() => console.log("All sent is : " + Allsend))
+        .then(() => res.send("All sent is : " + Allsend));
+    }
+  } catch (error) {
+    res.status(500).send(error.message);
+    console.log(error.message);
+  }
+};
+
+module.exports = { ShowAuctions, PutAuctions };
+// for (let count = 0; count < data_response.length; count++) {
+//     console.log("In for\n");
+//     let uid = data_response[count]?.conversation_id;
+//     if (uid) {
+//       query = `select userid from _users_in_conversation where conversation_id=${uid}`;
+//       await pool.query(query, (err, result) => {
+//         console.log("====================================");
+//         console.log("FOR", count, "\n", result?.rows, "\n", "FOR", count);
+//         console.log("====================================");
+//         result.rows.length >= 1
+//           ?
+//           : res.send({ data: "No conversations yet", response: false });
+//       });
+//     }
+//   }
+
+//
